@@ -5,6 +5,9 @@ on:
   push:
     branches-ignore:
       - 'l10n_master'
+    paths-ignore:
+      - '.github/workflows/**'
+  workflow_dispatch: {}
 
 
 jobs:
@@ -13,7 +16,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repo
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f  # v2.3.4
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Set up CLOC
         run: |
@@ -31,7 +34,7 @@ jobs:
       package_version: ${{ steps.retrieve-version.outputs.package_version }}
     steps:
       - name: Checkout repo
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f  # v2.3.4
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Get Package Version
         id: retrieve-version
@@ -46,16 +49,18 @@ jobs:
     needs: setup
     env:
       _PACKAGE_VERSION: ${{ needs.setup.outputs.package_version }}
-      _PKG_FETCH_NODE_VERSION: 16.13.0
-      _PKG_FETCH_VERSION: 3.2
+      _PKG_FETCH_NODE_VERSION: 18.5.0
+      _PKG_FETCH_VERSION: 3.4
     steps:
       - name: Checkout repo
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f  # v2.3.4
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Set up Node
-        uses: actions/setup-node@46071b5c7a2e0c34e49c3cb8a0e792e86e18d5ea
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
-          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+          node-version: '18'
 
       - name: Update NPM
         run: |
@@ -89,18 +94,17 @@ jobs:
         run: npm run dist:cli:lin
 
       - name: Zip
-        run: |
-          zip -j ./dist-cli/bwdc-linux-$_PACKAGE_VERSION.zip ./dist-cli/linux/bwdc ./keytar/linux/build/Release/keytar.node
+        run: zip -j ./dist-cli/bwdc-linux-$_PACKAGE_VERSION.zip ./dist-cli/linux/bwdc ./keytar/linux/build/Release/keytar.node
 
       - name: Create checksums
-        run: |
-          sha256sum ./dist-cli/bwdc-linux-$_PACKAGE_VERSION.zip | cut -d " " -f 1 > ./dist-cli/bwdc-linux-sha256-$_PACKAGE_VERSION.txt
+        run: sha256sum ./dist-cli/bwdc-linux-$_PACKAGE_VERSION.zip | cut -d " " -f 1 > ./dist-cli/bwdc-linux-sha256-$_PACKAGE_VERSION.txt
 
       - name: Version Test
         run: |
+          sudo apt-get update
           sudo apt install libsecret-1-0 dbus-x11 gnome-keyring
           eval $(dbus-launch --sh-syntax)
-          
+
           eval $(echo -n "" | /usr/bin/gnome-keyring-daemon --login)
           eval $(/usr/bin/gnome-keyring-daemon --components=secrets --start)
 
@@ -118,14 +122,14 @@ jobs:
           fi
 
       - name: Upload Linux Zip to GitHub
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: bwdc-linux-${{ env._PACKAGE_VERSION }}.zip
           path: ./dist-cli/bwdc-linux-${{ env._PACKAGE_VERSION }}.zip
           if-no-files-found: error
 
       - name: Upload Linux checksum to GitHub
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: bwdc-linux-sha256-${{ env._PACKAGE_VERSION }}.txt
           path: ./dist-cli/bwdc-linux-sha256-${{ env._PACKAGE_VERSION }}.txt
@@ -138,16 +142,18 @@ jobs:
     needs: setup
     env:
       _PACKAGE_VERSION: ${{ needs.setup.outputs.package_version }}
-      _PKG_FETCH_NODE_VERSION: 16.13.0
-      _PKG_FETCH_VERSION: 3.2
+      _PKG_FETCH_NODE_VERSION: 18.5.0
+      _PKG_FETCH_VERSION: 3.4
     steps:
       - name: Checkout repo
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f  # v2.3.4
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Set up Node
-        uses: actions/setup-node@46071b5c7a2e0c34e49c3cb8a0e792e86e18d5ea
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
-          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+          node-version: '18'
 
       - name: Update NPM
         run: |
@@ -181,12 +187,10 @@ jobs:
         run: npm run dist:cli:mac
 
       - name: Zip
-        run: |
-          zip -j ./dist-cli/bwdc-macos-$_PACKAGE_VERSION.zip ./dist-cli/macos/bwdc ./keytar/macos/build/Release/keytar.node
+        run: zip -j ./dist-cli/bwdc-macos-$_PACKAGE_VERSION.zip ./dist-cli/macos/bwdc ./keytar/macos/build/Release/keytar.node
 
       - name: Create checksums
-        run: |
-          sha256sum ./dist-cli/bwdc-macos-$_PACKAGE_VERSION.zip | cut -d " " -f 1 > ./dist-cli/bwdc-macos-sha256-$_PACKAGE_VERSION.txt
+        run: sha256sum ./dist-cli/bwdc-macos-$_PACKAGE_VERSION.zip | cut -d " " -f 1 > ./dist-cli/bwdc-macos-sha256-$_PACKAGE_VERSION.txt
 
       - name: Version Test
         run: |
@@ -204,14 +208,14 @@ jobs:
           fi
 
       - name: Upload Mac Zip to GitHub
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: bwdc-macos-${{ env._PACKAGE_VERSION }}.zip
           path: ./dist-cli/bwdc-macos-${{ env._PACKAGE_VERSION }}.zip
           if-no-files-found: error
 
       - name: Upload Mac checksum to GitHub
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: bwdc-macos-sha256-${{ env._PACKAGE_VERSION }}.txt
           path: ./dist-cli/bwdc-macos-sha256-${{ env._PACKAGE_VERSION }}.txt
@@ -224,11 +228,11 @@ jobs:
     needs: setup
     env:
       _PACKAGE_VERSION: ${{ needs.setup.outputs.package_version }}
-      _WIN_PKG_FETCH_VERSION: 16.13.0
-      _WIN_PKG_VERSION: 3.2
+      _WIN_PKG_FETCH_VERSION: 18.5.0
+      _WIN_PKG_VERSION: 3.4
     steps:
       - name: Checkout repo
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f  # v2.3.4
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Setup Windows builder
         run: |
@@ -236,9 +240,11 @@ jobs:
           choco install reshack --no-progress
 
       - name: Set up Node
-        uses: actions/setup-node@46071b5c7a2e0c34e49c3cb8a0e792e86e18d5ea
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
-          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+          node-version: '18'
 
       - name: Update NPM
         run: |
@@ -328,8 +334,7 @@ jobs:
 
       - name: Zip
         shell: cmd
-        run: |
-          7z a ./dist-cli/bwdc-windows-%_PACKAGE_VERSION%.zip ./dist-cli/windows/bwdc.exe ./keytar/windows/keytar.node
+        run: 7z a ./dist-cli/bwdc-windows-%_PACKAGE_VERSION%.zip ./dist-cli/windows/bwdc.exe ./keytar/windows/keytar.node
 
       - name: Version Test
         run: |
@@ -347,14 +352,14 @@ jobs:
             -t sha256 | Out-File ./dist-cli/bwdc-windows-sha256-${env:_PACKAGE_VERSION}.txt
 
       - name: Upload Windows Zip to GitHub
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: bwdc-windows-${{ env._PACKAGE_VERSION }}.zip
           path: ./dist-cli/bwdc-windows-${{ env._PACKAGE_VERSION }}.zip
           if-no-files-found: error
 
       - name: Upload Windows checksum to GitHub
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: bwdc-windows-sha256-${{ env._PACKAGE_VERSION }}.txt
           path: ./dist-cli/bwdc-windows-sha256-${{ env._PACKAGE_VERSION }}.txt
@@ -368,15 +373,15 @@ jobs:
     env:
       _PACKAGE_VERSION: ${{ needs.setup.outputs.package_version }}
     steps:
-      - name: Set up .NET
-        uses: actions/setup-dotnet@a71d1eb2c86af85faa8c772c03fb365e377e45ea
-        with:
-          dotnet-version: "3.1.x"
+      - name: Checkout repo
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Set up Node
-        uses: actions/setup-node@46071b5c7a2e0c34e49c3cb8a0e792e86e18d5ea
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
-          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+          node-version: '18'
 
       - name: Update NPM
         run: |
@@ -391,13 +396,9 @@ jobs:
         run: |
           node --version
           npm --version
-          dotnet --version
 
       - name: Install AST
-        uses: bitwarden/gh-actions/install-ast@f135c42c8596cb535c5bcb7523c0b2eef89709ac
-
-      - name: Checkout repo
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f  # v2.3.4
+        uses: bitwarden/gh-actions/install-ast@72594be690a4e7bfa87b1402b2aedc75acdbff12
 
       - name: Install Node dependencies
         run: npm install
@@ -416,28 +417,28 @@ jobs:
           SIGNING_CERT_NAME: ${{ secrets.SIGNING_CERT_NAME }}
 
       - name: Upload Portable Executable to GitHub
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: Bitwarden-Connector-Portable-${{ env._PACKAGE_VERSION }}.exe
           path: ./dist/Bitwarden-Connector-Portable-${{ env._PACKAGE_VERSION }}.exe
           if-no-files-found: error
 
       - name: Upload Installer Executable to GitHub
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: Bitwarden-Connector-Installer-${{ env._PACKAGE_VERSION }}.exe
           path: ./dist/Bitwarden-Connector-Installer-${{ env._PACKAGE_VERSION }}.exe
           if-no-files-found: error
 
       - name: Upload Installer Executable Blockmap to GitHub
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: Bitwarden-Connector-Installer-${{ env._PACKAGE_VERSION }}.exe.blockmap
           path: ./dist/Bitwarden-Connector-Installer-${{ env._PACKAGE_VERSION }}.exe.blockmap
           if-no-files-found: error
 
       - name: Upload latest auto-update artifact
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: latest.yml
           path: ./dist/latest.yml
@@ -451,10 +452,15 @@ jobs:
     env:
       _PACKAGE_VERSION: ${{ needs.setup.outputs.package_version }}
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
       - name: Set up Node
-        uses: actions/setup-node@46071b5c7a2e0c34e49c3cb8a0e792e86e18d5ea
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
-          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+          node-version: '18'
 
       - name: Update NPM
         run: |
@@ -470,9 +476,6 @@ jobs:
           sudo apt-get -y install pkg-config libxss-dev libsecret-1-dev
           sudo apt-get -y install rpm
 
-      - name: Checkout repo
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f  # v2.3.4
-
       - name: NPM Install
         run: npm install
 
@@ -483,14 +486,14 @@ jobs:
         run: npm run dist:lin
 
       - name: Upload AppImage
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: Bitwarden-Connector-${{ env._PACKAGE_VERSION }}-x86_64.AppImage
           path: ./dist/Bitwarden-Connector-${{ env._PACKAGE_VERSION }}-x86_64.AppImage
           if-no-files-found: error
 
       - name: Upload latest auto-update artifact
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: latest-linux.yml
           path: ./dist/latest-linux.yml
@@ -504,10 +507,15 @@ jobs:
     env:
       _PACKAGE_VERSION: ${{ needs.setup.outputs.package_version }}
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
       - name: Set up Node
-        uses: actions/setup-node@46071b5c7a2e0c34e49c3cb8a0e792e86e18d5ea
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3.6.0
         with:
-          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+          node-version: '18'
 
       - name: Update NPM
         run: |
@@ -524,9 +532,6 @@ jobs:
           echo "GitHub ref: $GITHUB_REF"
           echo "GitHub event: $GITHUB_EVENT"
         shell: bash
-
-      - name: Checkout repo
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f  # v2.3.4
 
       - name: Decrypt secrets
         env:
@@ -587,35 +592,29 @@ jobs:
           APPLE_ID_USERNAME: ${{ secrets.APPLE_ID_USERNAME }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
 
-      - name: Rename Zip Artifact
-        run: |
-          cd dist
-          mv "Bitwarden Directory Connector-${{ env._PACKAGE_VERSION }}-mac.zip" \
-             "Bitwarden-Connector-${{ env._PACKAGE_VERSION }}-mac.zip"
-
       - name: Upload .zip artifact
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: Bitwarden-Connector-${{ env._PACKAGE_VERSION }}-mac.zip
           path: ./dist/Bitwarden-Connector-${{ env._PACKAGE_VERSION }}-mac.zip
           if-no-files-found: error
 
       - name: Upload .dmg artifact
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: Bitwarden-Connector-${{ env._PACKAGE_VERSION }}.dmg
           path: ./dist/Bitwarden-Connector-${{ env._PACKAGE_VERSION }}.dmg
           if-no-files-found: error
 
       - name: Upload .dmg Blockmap artifact
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: Bitwarden-Connector-${{ env._PACKAGE_VERSION }}.dmg.blockmap
           path: ./dist/Bitwarden-Connector-${{ env._PACKAGE_VERSION }}.dmg.blockmap
           if-no-files-found: error
 
       - name: Upload latest auto-update artifact
-        uses: actions/upload-artifact@ee69f02b3dfdecd58bb31b4d133da38ba6fe3700  # v2.2.3
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: latest-mac.yml
           path: ./dist/latest-mac.yml
@@ -666,21 +665,28 @@ jobs:
           fi
 
       - name: Login to Azure - Prod Subscription
-        uses: Azure/login@77f1b2e3fb80c0e8645114159d17008b8a2e475a
+        uses: Azure/login@92a5484dfaf04ca78a94597f4f19fea633851fa2 # v1.4.7
         if: failure()
         with:
-          creds: ${{ secrets.AZURE_PROD_KV_CREDENTIALS }}
+          creds: ${{ secrets.AZURE_KV_CI_SERVICE_PRINCIPAL }}
 
       - name: Retrieve secrets
         id: retrieve-secrets
-        uses: Azure/get-keyvault-secrets@80ccd3fafe5662407cc2e55f202ee34bfff8c403
         if: failure()
-        with:
-          keyvault: "bitwarden-prod-kv"
-          secrets: "devops-alerts-slack-webhook-url"
+        env:
+          KEYVAULT: bitwarden-ci
+          SECRETS: |
+            devops-alerts-slack-webhook-url
+        run: |
+          for i in ${SECRETS//,/ }
+          do
+            VALUE=$(az keyvault secret show --vault-name $KEYVAULT --name $i --query value --output tsv)
+            echo "::add-mask::$VALUE"
+            echo "::set-output name=$i::$VALUE"
+          done
 
       - name: Notify Slack on failure
-        uses: act10ns/slack@e4e71685b9b239384b0f676a63c32367f59c2522  # v1.2.2
+        uses: act10ns/slack@ed1309ab9862e57e9e583e51c7889486b9a00b0f # v2.0.0
         if: failure()
         env:
           SLACK_WEBHOOK_URL: ${{ steps.retrieve-secrets.outputs.devops-alerts-slack-webhook-url }}

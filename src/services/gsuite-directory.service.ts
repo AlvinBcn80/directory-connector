@@ -1,8 +1,11 @@
 import { JWT } from "google-auth-library";
 import { admin_directory_v1, google } from "googleapis";
 
-import { DirectoryType } from "../enums/directoryType";
+import { I18nService } from "jslib-common/abstractions/i18n.service";
+import { LogService } from "jslib-common/abstractions/log.service";
 
+import { StateService } from "../abstractions/state.service";
+import { DirectoryType } from "../enums/directoryType";
 import { GroupEntry } from "../models/groupEntry";
 import { GSuiteConfiguration } from "../models/gsuiteConfiguration";
 import { SyncConfiguration } from "../models/syncConfiguration";
@@ -10,10 +13,6 @@ import { UserEntry } from "../models/userEntry";
 
 import { BaseDirectoryService } from "./baseDirectory.service";
 import { IDirectoryService } from "./directory.service";
-
-import { I18nService } from "jslib-common/abstractions/i18n.service";
-import { LogService } from "jslib-common/abstractions/log.service";
-import { StateService } from "../abstractions/state.service";
 
 export class GSuiteDirectoryService extends BaseDirectoryService implements IDirectoryService {
   private client: JWT;
@@ -72,6 +71,7 @@ export class GSuiteDirectoryService extends BaseDirectoryService implements IDir
     let nextPageToken: string = null;
 
     const filter = this.createCustomSet(this.syncConfig.userFilter);
+    // eslint-disable-next-line
     while (true) {
       this.logService.info("Querying users - nextPageToken:" + nextPageToken);
       const p = Object.assign({ query: query, pageToken: nextPageToken }, this.authParams);
@@ -99,6 +99,7 @@ export class GSuiteDirectoryService extends BaseDirectoryService implements IDir
     }
 
     nextPageToken = null;
+    // eslint-disable-next-line
     while (true) {
       this.logService.info("Querying deleted users - nextPageToken:" + nextPageToken);
       const p = Object.assign(
@@ -150,11 +151,18 @@ export class GSuiteDirectoryService extends BaseDirectoryService implements IDir
     users: UserEntry[]
   ): Promise<GroupEntry[]> {
     const entries: GroupEntry[] = [];
+    const query = this.createDirectoryQuery(this.syncConfig.groupFilter);
     let nextPageToken: string = null;
 
+    // eslint-disable-next-line
     while (true) {
       this.logService.info("Querying groups - nextPageToken:" + nextPageToken);
-      const p = Object.assign({ pageToken: nextPageToken }, this.authParams);
+      let p = null;
+      if (query == null) {
+        p = Object.assign({ pageToken: nextPageToken }, this.authParams);
+      } else {
+        p = Object.assign({ query: query, pageToken: nextPageToken }, this.authParams);
+      }
       const res = await this.service.groups.list(p);
       if (res.status !== 200) {
         throw new Error("Group list API failed: " + res.statusText);
@@ -186,6 +194,7 @@ export class GSuiteDirectoryService extends BaseDirectoryService implements IDir
     entry.externalId = group.id;
     entry.name = group.name;
 
+    // eslint-disable-next-line
     while (true) {
       const p = Object.assign({ groupKey: group.id, pageToken: nextPageToken }, this.authParams);
       const memRes = await this.service.members.list(p);

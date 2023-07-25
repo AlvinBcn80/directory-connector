@@ -1,22 +1,12 @@
 import * as fs from "fs";
 import * as path from "path";
 
+import { StorageService as StorageServiceAbstraction } from "jslib-common/abstractions/storage.service";
+import { TwoFactorService as TwoFactorServiceAbstraction } from "jslib-common/abstractions/twoFactor.service";
+import { ClientType } from "jslib-common/enums/clientType";
 import { LogLevelType } from "jslib-common/enums/logLevelType";
-
-import { AuthService } from "./services/auth.service";
-
-import { I18nService } from "./services/i18n.service";
-import { KeytarSecureStorageService } from "./services/keytarSecureStorage.service";
-import { LowdbStorageService } from "./services/lowdbStorage.service";
-import { StateService } from "./services/state.service";
-import { StateMigrationService } from "./services/stateMigration.service";
-import { SyncService } from "./services/sync.service";
-
-import { CliPlatformUtilsService } from "jslib-node/cli/services/cliPlatformUtils.service";
-import { ConsoleLogService } from "jslib-node/cli/services/consoleLog.service";
-import { NodeApiService } from "jslib-node/services/nodeApi.service";
-import { NodeCryptoFunctionService } from "jslib-node/services/nodeCryptoFunction.service";
-
+import { StateFactory } from "jslib-common/factories/stateFactory";
+import { GlobalState } from "jslib-common/models/domain/globalState";
 import { AppIdService } from "jslib-common/services/appId.service";
 import { CipherService } from "jslib-common/services/cipher.service";
 import { CollectionService } from "jslib-common/services/collection.service";
@@ -35,19 +25,26 @@ import { SearchService } from "jslib-common/services/search.service";
 import { SendService } from "jslib-common/services/send.service";
 import { SettingsService } from "jslib-common/services/settings.service";
 import { TokenService } from "jslib-common/services/token.service";
-
-import { StorageService as StorageServiceAbstraction } from "jslib-common/abstractions/storage.service";
-
-import { Program } from "./program";
-
-import { AccountFactory } from "jslib-common/models/domain/account";
+import { CliPlatformUtilsService } from "jslib-node/cli/services/cliPlatformUtils.service";
+import { ConsoleLogService } from "jslib-node/cli/services/consoleLog.service";
+import { NodeApiService } from "jslib-node/services/nodeApi.service";
+import { NodeCryptoFunctionService } from "jslib-node/services/nodeCryptoFunction.service";
 
 import { Account } from "./models/account";
+import { Program } from "./program";
+import { AuthService } from "./services/auth.service";
+import { I18nService } from "./services/i18n.service";
+import { KeytarSecureStorageService } from "./services/keytarSecureStorage.service";
+import { LowdbStorageService } from "./services/lowdbStorage.service";
+import { NoopTwoFactorService } from "./services/noop/noopTwoFactor.service";
+import { StateService } from "./services/state.service";
+import { StateMigrationService } from "./services/stateMigration.service";
+import { SyncService } from "./services/sync.service";
 
-// tslint:disable-next-line
+// eslint-disable-next-line
 const packageJson = require("./package.json");
 
-export let searchService: SearchService = null;
+export const searchService: SearchService = null;
 export class Main {
   dataFilePath: string;
   logService: ConsoleLogService;
@@ -80,6 +77,7 @@ export class Main {
   stateMigrationService: StateMigrationService;
   organizationService: OrganizationService;
   providerService: ProviderService;
+  twoFactorService: TwoFactorServiceAbstraction;
 
   constructor() {
     const applicationName = "Bitwarden Directory Connector";
@@ -104,7 +102,10 @@ export class Main {
 
     const plaintextSecrets = process.env.BITWARDENCLI_CONNECTOR_PLAINTEXT_SECRETS === "true";
     this.i18nService = new I18nService("en", "./locales");
-    this.platformUtilsService = new CliPlatformUtilsService("connector", packageJson);
+    this.platformUtilsService = new CliPlatformUtilsService(
+      ClientType.DirectoryConnector,
+      packageJson
+    );
     this.logService = new ConsoleLogService(
       this.platformUtilsService.isDev(),
       (level) => process.env.BITWARDENCLI_CONNECTOR_DEBUG !== "true" && level <= LogLevelType.Info
@@ -123,7 +124,8 @@ export class Main {
 
     this.stateMigrationService = new StateMigrationService(
       this.storageService,
-      this.secureStorageService
+      this.secureStorageService,
+      new StateFactory(GlobalState, Account)
     );
 
     this.stateService = new StateService(
@@ -132,7 +134,7 @@ export class Main {
       this.logService,
       this.stateMigrationService,
       process.env.BITWARDENCLI_CONNECTOR_PLAINTEXT_SECRETS !== "true",
-      new AccountFactory(Account)
+      new StateFactory(GlobalState, Account)
     );
 
     this.cryptoService = new CryptoService(
@@ -146,17 +148,20 @@ export class Main {
     this.tokenService = new TokenService(this.stateService);
     this.messagingService = new NoopMessagingService();
     this.environmentService = new EnvironmentService(this.stateService);
+
+    const customUserAgent =
+      "Bitwarden_DC/" +
+      this.platformUtilsService.getApplicationVersion() +
+      " (" +
+      this.platformUtilsService.getDeviceString().toUpperCase() +
+      ")";
     this.apiService = new NodeApiService(
       this.tokenService,
       this.platformUtilsService,
       this.environmentService,
+      this.appIdService,
       async (expired: boolean) => await this.logout(),
-      "Bitwarden_DC/" +
-        this.platformUtilsService.getApplicationVersion() +
-        " (" +
-        this.platformUtilsService.getDeviceString().toUpperCase() +
-        ")",
-      (clientId, clientSecret) => this.authService.logInApiKey(clientId, clientSecret)
+      customUserAgent
     );
     this.containerService = new ContainerService(this.cryptoService);
 
@@ -168,23 +173,25 @@ export class Main {
       this.apiService,
       this.tokenService,
       this.logService,
-      this.organizationService
+      this.organizationService,
+      this.cryptoFunctionService
     );
+
+    this.twoFactorService = new NoopTwoFactorService();
 
     this.authService = new AuthService(
       this.cryptoService,
       this.apiService,
       this.tokenService,
       this.appIdService,
-      this.i18nService,
       this.platformUtilsService,
       this.messagingService,
-      null,
       this.logService,
-      this.cryptoFunctionService,
-      this.environmentService,
       this.keyConnectorService,
-      this.stateService
+      this.environmentService,
+      this.stateService,
+      this.twoFactorService,
+      this.i18nService
     );
 
     this.syncService = new SyncService(
@@ -277,7 +284,6 @@ export class Main {
     // });
     const locale = await this.stateService.getLocale();
     await this.i18nService.init(locale);
-    this.authService.init();
 
     const installedVersion = await this.stateService.getInstalledVersion();
     const currentVersion = await this.platformUtilsService.getApplicationVersion();

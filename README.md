@@ -15,7 +15,7 @@ Supported directories:
 
 The application is written using Electron with Angular and installs on Windows, macOS, and Linux distributions.
 
-[![Platforms](https://imgur.com/SLv9paA.png "Windows, macOS, and Linux")](https://help.bitwarden.com/article/directory-sync/#download-and-install)
+[![Platforms](https://imgur.com/SLv9paA.png "Windows, macOS, and Linux")](https://bitwarden.com/help/directory-sync/#download-and-install)
 
 ![Directory Connector](https://raw.githubusercontent.com/bitwarden/brand/master/screenshots/directory-connector-macos.png "Dashboard")
 
@@ -42,7 +42,7 @@ bwdc config --help
 
 **Detailed Documentation**
 
-We provide detailed documentation and examples for using the Directory Connector CLI in our help center at https://help.bitwarden.com/article/directory-sync/#command-line-interface.
+We provide detailed documentation and examples for using the Directory Connector CLI in our help center at https://bitwarden.com/help/directory-sync-cli/.
 
 ## Build/Run
 
@@ -73,6 +73,10 @@ You can then run commands from the `./build-cli` folder:
 ```bash
 node ./build-cli/bwdc.js --help
 ```
+
+## We're Hiring!
+
+Interested in contributing in a big way? Consider joining our team! We're hiring for many positions. Please take a look at our [Careers page](https://bitwarden.com/careers/) to see what opportunities are currently open as well as what it's like to work at Bitwarden.
 
 ## Contribute
 

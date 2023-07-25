@@ -1,11 +1,9 @@
-import { app } from "electron";
 import * as path from "path";
 
-import { MenuMain } from "./main/menu.main";
-import { MessagingMain } from "./main/messaging.main";
-import { I18nService } from "./services/i18n.service";
+import { app } from "electron";
 
-import { KeytarStorageListener } from "jslib-electron/keytarStorageListener";
+import { StateFactory } from "jslib-common/factories/stateFactory";
+import { GlobalState } from "jslib-common/models/domain/globalState";
 import { ElectronLogService } from "jslib-electron/services/electronLog.service";
 import { ElectronMainMessagingService } from "jslib-electron/services/electronMainMessaging.service";
 import { ElectronStorageService } from "jslib-electron/services/electronStorage.service";
@@ -13,18 +11,19 @@ import { TrayMain } from "jslib-electron/tray.main";
 import { UpdaterMain } from "jslib-electron/updater.main";
 import { WindowMain } from "jslib-electron/window.main";
 
-import { StateService } from "./services/state.service";
-
-import { AccountFactory } from "jslib-common/models/domain/account";
-
+import { DCCredentialStorageListener } from "./main/credential-storage-listener";
+import { MenuMain } from "./main/menu.main";
+import { MessagingMain } from "./main/messaging.main";
 import { Account } from "./models/account";
+import { I18nService } from "./services/i18n.service";
+import { StateService } from "./services/state.service";
 
 export class Main {
   logService: ElectronLogService;
   i18nService: I18nService;
   storageService: ElectronStorageService;
   messagingService: ElectronMainMessagingService;
-  keytarStorageListener: KeytarStorageListener;
+  credentialStorageListener: DCCredentialStorageListener;
   stateService: StateService;
 
   windowMain: WindowMain;
@@ -51,7 +50,7 @@ export class Main {
     const watch = args.some((val) => val === "--watch");
 
     if (watch) {
-      // tslint:disable-next-line
+      // eslint-disable-next-line
       require("electron-reload")(__dirname, {});
     }
 
@@ -64,7 +63,7 @@ export class Main {
       this.logService,
       null,
       true,
-      new AccountFactory(Account)
+      new StateFactory(GlobalState, Account)
     );
 
     this.windowMain = new WindowMain(
@@ -106,11 +105,13 @@ export class Main {
       this.messagingMain.onMessage(message);
     });
 
-    this.keytarStorageListener = new KeytarStorageListener("Bitwarden Directory Connector", null);
+    this.credentialStorageListener = new DCCredentialStorageListener(
+      "Bitwarden Directory Connector"
+    );
   }
 
   bootstrap() {
-    this.keytarStorageListener.init();
+    this.credentialStorageListener.init();
     this.windowMain.init().then(
       async () => {
         await this.i18nService.init(app.getLocale());
@@ -130,7 +131,7 @@ export class Main {
         });
       },
       (e: any) => {
-        // tslint:disable-next-line
+        // eslint-disable-next-line
         console.error(e);
       }
     );

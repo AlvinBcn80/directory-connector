@@ -1,0 +1,41 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base",
+    ":combinePatchMinorReleases",
+    ":dependencyDashboard",
+    ":maintainLockFilesWeekly",
+    ":pinAllExceptPeerDependencies",
+    ":prConcurrentLimit10",
+    ":rebaseStalePrs",
+    "schedule:weekends",
+    ":separateMajorReleases"
+  ],
+  "enabledManagers": ["github-actions", "npm"],
+  "packageRules": [
+    {
+      "groupName": "gh minor",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "groupName": "npm minor",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "packageNames": ["typescript"],
+      "matchUpdateTypes": ["major", "minor"],
+      "enabled": false
+    },
+    {
+      "packageNames": ["typescript"],
+      "matchUpdateTypes": "patch"
+    },
+    {
+      "groupName": "jest",
+      "packageNames": ["@types/jest", "jest", "ts-jest", "jest-preset-angular"],
+      "matchUpdateTypes": "major"
+    }
+  ]
+}

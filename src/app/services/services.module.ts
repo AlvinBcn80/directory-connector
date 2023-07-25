@@ -1,24 +1,6 @@
-import { APP_INITIALIZER, Injector, NgModule } from "@angular/core";
-
-import { ElectronLogService } from "jslib-electron/services/electronLog.service";
-import { ElectronPlatformUtilsService } from "jslib-electron/services/electronPlatformUtils.service";
-import { ElectronRendererMessagingService } from "jslib-electron/services/electronRendererMessaging.service";
-import { ElectronRendererSecureStorageService } from "jslib-electron/services/electronRendererSecureStorage.service";
-import { ElectronRendererStorageService } from "jslib-electron/services/electronRendererStorage.service";
-
-import { AuthGuardService } from "./auth-guard.service";
-import { LaunchGuardService } from "./launch-guard.service";
-
-import { I18nService } from "../../services/i18n.service";
-import { SyncService } from "../../services/sync.service";
+import { APP_INITIALIZER, NgModule } from "@angular/core";
 
 import { JslibServicesModule } from "jslib-angular/services/jslib-services.module";
-
-import { ContainerService } from "jslib-common/services/container.service";
-
-import { NodeApiService } from "jslib-node/services/nodeApi.service";
-import { NodeCryptoFunctionService } from "jslib-node/services/nodeCryptoFunction.service";
-
 import { ApiService as ApiServiceAbstraction } from "jslib-common/abstractions/api.service";
 import { AppIdService as AppIdServiceAbstraction } from "jslib-common/abstractions/appId.service";
 import { AuthService as AuthServiceAbstraction } from "jslib-common/abstractions/auth.service";
@@ -34,40 +16,41 @@ import { PlatformUtilsService as PlatformUtilsServiceAbstraction } from "jslib-c
 import { StateMigrationService as StateMigrationServiceAbstraction } from "jslib-common/abstractions/stateMigration.service";
 import { StorageService as StorageServiceAbstraction } from "jslib-common/abstractions/storage.service";
 import { TokenService as TokenServiceAbstraction } from "jslib-common/abstractions/token.service";
-import { VaultTimeoutService as VaultTimeoutServiceAbstraction } from "jslib-common/abstractions/vaultTimeout.service";
+import { TwoFactorService as TwoFactorServiceAbstraction } from "jslib-common/abstractions/twoFactor.service";
+import { StateFactory } from "jslib-common/factories/stateFactory";
+import { GlobalState } from "jslib-common/models/domain/globalState";
+import { ContainerService } from "jslib-common/services/container.service";
+import { ElectronLogService } from "jslib-electron/services/electronLog.service";
+import { ElectronPlatformUtilsService } from "jslib-electron/services/electronPlatformUtils.service";
+import { ElectronRendererMessagingService } from "jslib-electron/services/electronRendererMessaging.service";
+import { ElectronRendererSecureStorageService } from "jslib-electron/services/electronRendererSecureStorage.service";
+import { ElectronRendererStorageService } from "jslib-electron/services/electronRendererStorage.service";
+import { NodeApiService } from "jslib-node/services/nodeApi.service";
+import { NodeCryptoFunctionService } from "jslib-node/services/nodeCryptoFunction.service";
 
 import { StateService as StateServiceAbstraction } from "../../abstractions/state.service";
-
-import { ApiService, refreshToken } from "../../services/api.service";
+import { Account } from "../../models/account";
 import { AuthService } from "../../services/auth.service";
+import { I18nService } from "../../services/i18n.service";
+import { NoopTwoFactorService } from "../../services/noop/noopTwoFactor.service";
 import { StateService } from "../../services/state.service";
 import { StateMigrationService } from "../../services/stateMigration.service";
+import { SyncService } from "../../services/sync.service";
 
-import { Account } from "../../models/account";
-
-import { AccountFactory } from "jslib-common/models/domain/account";
-
-function refreshTokenCallback(injector: Injector) {
-  return () => {
-    const stateService = injector.get(StateServiceAbstraction);
-    const authService = injector.get(AuthServiceAbstraction);
-    return refreshToken(stateService, authService);
-  };
-}
+import { AuthGuardService } from "./auth-guard.service";
+import { LaunchGuardService } from "./launch-guard.service";
 
 export function initFactory(
   environmentService: EnvironmentServiceAbstraction,
   i18nService: I18nService,
-  authService: AuthService,
   platformUtilsService: PlatformUtilsServiceAbstraction,
   stateService: StateServiceAbstraction,
   cryptoService: CryptoServiceAbstraction
-): Function {
+): () => Promise<void> {
   return async () => {
     await stateService.init();
     await environmentService.setUrlsFromStorage();
     await i18nService.init();
-    authService.init();
     const htmlEl = window.document.documentElement;
     htmlEl.classList.add("os_" + platformUtilsService.getDeviceString());
     htmlEl.classList.add("locale_" + i18nService.translationLocale);
@@ -101,7 +84,6 @@ export function initFactory(
       deps: [
         EnvironmentServiceAbstraction,
         I18nServiceAbstraction,
-        AuthServiceAbstraction,
         PlatformUtilsServiceAbstraction,
         StateServiceAbstraction,
         CryptoServiceAbstraction,
@@ -127,7 +109,7 @@ export function initFactory(
         i18nService: I18nServiceAbstraction,
         messagingService: MessagingServiceAbstraction,
         stateService: StateServiceAbstraction
-      ) => new ElectronPlatformUtilsService(i18nService, messagingService, true, stateService),
+      ) => new ElectronPlatformUtilsService(i18nService, messagingService, false, stateService),
       deps: [I18nServiceAbstraction, MessagingServiceAbstraction, StateServiceAbstraction],
     },
     { provide: CryptoFunctionServiceAbstraction, useClass: NodeCryptoFunctionService, deps: [] },
@@ -138,26 +120,26 @@ export function initFactory(
         platformUtilsService: PlatformUtilsServiceAbstraction,
         environmentService: EnvironmentServiceAbstraction,
         messagingService: MessagingServiceAbstraction,
-        injector: Injector
+        appIdService: AppIdServiceAbstraction
       ) =>
         new NodeApiService(
           tokenService,
           platformUtilsService,
           environmentService,
+          appIdService,
           async (expired: boolean) => messagingService.send("logout", { expired: expired }),
           "Bitwarden_DC/" +
             platformUtilsService.getApplicationVersion() +
             " (" +
             platformUtilsService.getDeviceString().toUpperCase() +
-            ")",
-          refreshTokenCallback(injector)
+            ")"
         ),
       deps: [
         TokenServiceAbstraction,
         PlatformUtilsServiceAbstraction,
         EnvironmentServiceAbstraction,
         MessagingServiceAbstraction,
-        Injector,
+        AppIdServiceAbstraction,
       ],
     },
     {
@@ -168,15 +150,14 @@ export function initFactory(
         ApiServiceAbstraction,
         TokenServiceAbstraction,
         AppIdServiceAbstraction,
-        I18nServiceAbstraction,
         PlatformUtilsServiceAbstraction,
         MessagingServiceAbstraction,
-        VaultTimeoutServiceAbstraction,
         LogServiceAbstraction,
-        CryptoFunctionServiceAbstraction,
-        EnvironmentServiceAbstraction,
         KeyConnectorServiceAbstraction,
+        EnvironmentServiceAbstraction,
         StateServiceAbstraction,
+        TwoFactorServiceAbstraction,
+        I18nServiceAbstraction,
       ],
     },
     {
@@ -196,7 +177,15 @@ export function initFactory(
     LaunchGuardService,
     {
       provide: StateMigrationServiceAbstraction,
-      useClass: StateMigrationService,
+      useFactory: (
+        storageService: StorageServiceAbstraction,
+        secureStorageService: StorageServiceAbstraction
+      ) =>
+        new StateMigrationService(
+          storageService,
+          secureStorageService,
+          new StateFactory(GlobalState, Account)
+        ),
       deps: [StorageServiceAbstraction, "SECURE_STORAGE"],
     },
     {
@@ -212,8 +201,8 @@ export function initFactory(
           secureStorageService,
           logService,
           stateMigrationService,
-          true, // TODO: It seems like we aren't applying this from settings anywhere. Is toggling secure storage working?
-          new AccountFactory(Account)
+          true,
+          new StateFactory(GlobalState, Account)
         ),
       deps: [
         StorageServiceAbstraction,
@@ -221,6 +210,10 @@ export function initFactory(
         LogServiceAbstraction,
         StateMigrationServiceAbstraction,
       ],
+    },
+    {
+      provide: TwoFactorServiceAbstraction,
+      useClass: NoopTwoFactorService,
     },
   ],
 })
